@@ -5,16 +5,26 @@ PROTO_DIR = protobuf
 PROTO_FILE = $(PROTO_DIR)/position.proto
 PROTO_SRC = $(patsubst %.proto,%.pb.cc,$(PROTO_FILE))
 PROTO_HDR = $(patsubst %.proto,%.pb.h,$(PROTO_FILE))
-PROTO_OBJ = $(OBJ_DIR)/proto.o
+PROTO_OBJ = $(patsubst $(PROTO_DIR)/%.cc,$(OBJ_DIR)/%.o,$(PROTO_SRC))
+
+CPP_FLAGS = -Wall -Wextra -Werror
 
 %.pb.cc %.pb.h: %.proto
 	protoc --cpp_out=. $<
 
 $(PROTO_OBJ): $(PROTO_SRC) $(PROTO_HDR)
-	g++ -I . -c $< -o $@
+	g++ $(CPP_FLAGS) -I . -c $< -o $@
+
+SRC_DIR = src
+SRC = $(wildcard $(SRC_DIR)/*)
+OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC)) $(PROTO_OBJ)
+
+#TODO: Add dependency on other headers
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(PROTO_HDR)
+	g++ $(CPP_FLAGS) -I include -I $(PROTO_DIR) -c $< -o $@
 
 .PHONY: all clean
-all: $(PROTO_OBJ)
+all: $(OBJS)
 
 clean:
-	rm -f $(PROTO_OBJ) $(PROTO_SRC) $(PROTO_HDR)
+	rm -f $(OBJS) $(PROTO_SRC) $(PROTO_HDR)
