@@ -1,3 +1,4 @@
+BIN = data_generator
 #TODO: create the directory
 OBJ_DIR = obj
 
@@ -23,8 +24,11 @@ OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC)) $(PROTO_OBJ)
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(PROTO_HDR)
 	g++ $(CPP_FLAGS) -I include -I $(PROTO_DIR) -c $< -o $@
 
+$(BIN) : $(OBJS)
+	g++ $^ -lprotobuf -pthread -o $@
+
 .PHONY: all clean
-all: $(OBJS)
+all: $(BIN)
 
 clean:
 	rm -f $(OBJS) $(PROTO_SRC) $(PROTO_HDR)
