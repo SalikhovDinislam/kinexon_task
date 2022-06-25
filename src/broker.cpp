@@ -31,7 +31,7 @@ SensorBroker::SensorBroker(size_t sensors_count, const std::chrono::microseconds
 	}
 }
 
-SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t index)
+SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t &index)
 {
 	while (unprocessed_sensors_count > 0) {
 		index = (index + 1) % sensors.size();

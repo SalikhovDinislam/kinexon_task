@@ -31,7 +31,7 @@ public:
 	SensorBroker& operator=(const SensorBroker&&) = delete;
 
 	class LockedSensor;
-	LockedSensor get_next_sensor(size_t index);
+	LockedSensor get_next_sensor(size_t &index);
 	int loop();
 	size_t size() const
 	{
@@ -55,7 +55,7 @@ public:
 		return data.data;
 	}
 
-	uint64_t timestamp() const
+	uint64_t get_timestamp_us() const
 	{
 		return timestamp_us;
 	}
