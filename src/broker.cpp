@@ -33,63 +33,56 @@ SensorBroker::SensorBroker(size_t sensors_count, const std::chrono::microseconds
 
 SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t &index)
 {
-	while (unprocessed_sensors_count > 0) {
-		index = (index + 1) % sensors.size();
-		auto &elem = sensors[index];
+	while (true) {
+		while (unprocessed_sensors_count > 0) {
+			index = (index + 1) % sensors.size();
+			auto &elem = sensors[index];
 
-		/*
-		We check sensor's state the second time to make sure that
-		it wasn't processed before we acquire the mutex
-		*/
-		if (elem.state.load() == SensorState::UNPROCESSED
-		 && elem.mutex.try_lock()
-		 && elem.state.load() == SensorState::UNPROCESSED) {
-			--unprocessed_sensors_count;
-			return LockedSensor(elem, timestamp_us, processed_sensors_count);
+			/*
+			We check sensor's state the second time to make sure that
+			it wasn't processed before we acquire the mutex
+			*/
+			if (elem.state.load() == SensorState::UNPROCESSED
+			 && elem.mutex.try_lock()
+			 && elem.state.load() == SensorState::UNPROCESSED) {
+				--unprocessed_sensors_count;
+				return LockedSensor(elem, timestamp_us, processed_sensors_count);
+			}
 		}
-	}
 
-	{
 		std::unique_lock<std::mutex> lock(mutex);
 		auto &sensors_count = unprocessed_sensors_count;
-		if (sensors_count == 0) {
-			cond_var.wait(lock, [&sensors_count]{return sensors_count > 0;});
-		}
+		cond_var.wait(lock, [&sensors_count]{return sensors_count > 0;});
 	}
-
-	return get_next_sensor(index);
 }
 
 int SensorBroker::loop()
 {
-	/* TODO: iteration takes a bit longer than generation_period */
-	uint64_t now_us = get_timestamp_us();
-	auto elapsed = std::chrono::microseconds(now_us - timestamp_us);
-	if (elapsed < generation_period) {
-		auto duration = generation_period - elapsed;
-		std::this_thread::sleep_for(duration);
-	}
+	while (true) {
+		/* TODO: iteration takes a bit longer than generation_period */
+		uint64_t now_us = get_timestamp_us();
+		auto elapsed = std::chrono::microseconds(now_us - timestamp_us);
+		if (elapsed < generation_period) {
+			auto duration = generation_period - elapsed;
+			std::this_thread::sleep_for(duration);
+		}
 
-	// TODO: what should be the right way to handle it?
-	if (processed_sensors_count != sensors.size()) {
-		std::cerr << processed_sensors_count << " of " << sensors.size()
-			<< " sensors are processed in time" << std::endl;
+		// TODO: what should be the right way to handle it?
+		if (processed_sensors_count != sensors.size()) {
+			std::cerr << processed_sensors_count << " of " << sensors.size()
+				<< " sensors are processed in time" << std::endl;
 
-		return 1;
-	}
+			return 1;
+		}
 
-	timestamp_us = get_timestamp_us();
-	for (auto &sensor: sensors) {
-		sensor.state.store(SensorState::UNPROCESSED);
-	}
+		timestamp_us = get_timestamp_us();
+		for (auto &sensor: sensors) {
+			sensor.state.store(SensorState::UNPROCESSED);
+		}
 
-	{
 		processed_sensors_count.store(0);
-
-		std::unique_lock<std::mutex> lock(mutex);
 		unprocessed_sensors_count.store(sensors.size());
 		cond_var.notify_all();
 	}
 
-	return loop();
 }
