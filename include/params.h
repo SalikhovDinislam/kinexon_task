@@ -15,6 +15,7 @@ static const float MAX_Z = 3.;
 
 static const float NOISE_XY = 0.3;
 
+/* TODO: SENSORS_COUNT = 1 may hang */
 static const unsigned SENSORS_COUNT = 10;
 static const auto GENERATION_PERIOD = std::chrono::seconds(1);
 static const unsigned WORKERS_COUNT = 2;

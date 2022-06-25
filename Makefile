@@ -38,3 +38,6 @@ clean:
 
 check: all
 	$(BIN) && echo OK
+
+todo:
+	@git grep -wn TODO | grep -v 'Makefile.*git' | grep --color TODO

@@ -63,6 +63,7 @@ SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t &index)
 
 int SensorBroker::loop()
 {
+	/* TODO: iteration takes a bit longer than generation_period */
 	uint64_t now_us = get_timestamp_us();
 	auto elapsed = std::chrono::microseconds(now_us - timestamp_us);
 	if (elapsed < generation_period) {
