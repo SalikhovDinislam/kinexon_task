@@ -52,10 +52,9 @@ SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t &index)
 	{
 		std::unique_lock<std::mutex> lock(mutex);
 		auto &sensors_count = unprocessed_sensors_count;
-		if (sensors_count > 0) {
-			return get_next_sensor(index);
+		if (sensors_count == 0) {
+			cond_var.wait(lock, [&sensors_count]{return sensors_count > 0;});
 		}
-		cond_var.wait(lock, [&sensors_count]{return sensors_count > 1;});
 	}
 
 	return get_next_sensor(index);
