@@ -38,12 +38,15 @@ public:
 		return sensors.size();
 	}
 
+	typedef std::chrono::steady_clock clock_t;
+	typedef clock_t::time_point time_point_t;
+
 private:
 	std::vector<SensorData> sensors;
 	std::atomic_size_t unprocessed_sensors_count;
 	std::atomic_size_t processed_sensors_count;
-	uint64_t timestamp_us;
-	std::chrono::microseconds generation_period;
+	time_point_t current_ts;
+	const std::chrono::microseconds generation_period;
 	std::mutex mutex;
 	std::condition_variable cond_var;
 };

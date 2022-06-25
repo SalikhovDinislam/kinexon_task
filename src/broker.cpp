@@ -4,22 +4,27 @@
 #include "broker.h"
 #include "position.h"
 
-static uint64_t get_timestamp_us()
+static uint64_t time_point_to_us(const SensorBroker::time_point_t &time_point)
 {
 	using namespace std::chrono;
 
-	time_point<system_clock> now = system_clock::now();
-	auto duration = now.time_since_epoch();
+	auto duration = time_point.time_since_epoch();
 	return duration_cast<microseconds>(duration).count();
+}
+
+static SensorBroker::time_point_t now()
+{
+	return SensorBroker::clock_t::now();
 }
 
 SensorBroker::SensorBroker(size_t sensors_count, const std::chrono::microseconds &period)
 : sensors(sensors_count)
 , unprocessed_sensors_count(sensors_count)
 , processed_sensors_count(0)
+, current_ts(now())
 , generation_period(period)
 {
-	timestamp_us = get_timestamp_us();
+	uint64_t timestamp_us = time_point_to_us(current_ts);
 
 	for (size_t i = 0; i < sensors.size(); ++i) {
 		sensors[i].state.store(SensorState::UNPROCESSED);
@@ -46,7 +51,8 @@ SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t &index)
 			 && elem.mutex.try_lock()
 			 && elem.state.load() == SensorState::UNPROCESSED) {
 				--unprocessed_sensors_count;
-				return LockedSensor(elem, timestamp_us, processed_sensors_count);
+				uint64_t timestamp = time_point_to_us(current_ts);
+				return LockedSensor(elem, timestamp, processed_sensors_count);
 			}
 		}
 
@@ -59,13 +65,8 @@ SensorBroker::LockedSensor SensorBroker::get_next_sensor(size_t &index)
 int SensorBroker::loop()
 {
 	while (true) {
-		/* TODO: iteration takes a bit longer than generation_period */
-		uint64_t now_us = get_timestamp_us();
-		auto elapsed = std::chrono::microseconds(now_us - timestamp_us);
-		if (elapsed < generation_period) {
-			auto duration = generation_period - elapsed;
-			std::this_thread::sleep_for(duration);
-		}
+		time_point_t next_ts = current_ts + generation_period;
+		std::this_thread::sleep_until(next_ts);
 
 		// TODO: what should be the right way to handle it?
 		if (processed_sensors_count != sensors.size()) {
@@ -75,7 +76,7 @@ int SensorBroker::loop()
 			return 1;
 		}
 
-		timestamp_us = get_timestamp_us();
+		current_ts = next_ts;
 		for (auto &sensor: sensors) {
 			sensor.state.store(SensorState::UNPROCESSED);
 		}
