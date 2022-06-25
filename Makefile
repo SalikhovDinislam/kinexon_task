@@ -24,15 +24,17 @@ OBJS = $(patsubst $(SRC_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRC)) $(PROTO_OBJ)
 $(OBJ_DIR) $(BIN_DIR) :
 	mkdir -p $@
 
-#TODO: Add dependency on other headers
-$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(PROTO_HDR) | $(OBJ_DIR)
+$(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(PROTO_HDR) $(wildcard include/*) | $(OBJ_DIR)
 	g++ $(CPP_FLAGS) -I include -I $(PROTO_DIR) -c $< -o $@
 
 $(BIN) : $(OBJS) | $(BIN_DIR)
 	g++ $^ -lprotobuf -pthread -o $@
 
-.PHONY: all clean
+.PHONY: all clean check
 all: $(BIN)
 
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR) $(PROTO_SRC) $(PROTO_HDR)
+
+check: all
+	$(BIN) && echo OK
