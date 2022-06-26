@@ -8,14 +8,14 @@
 
 #include "params.h"
 
-static void worker_routine(SensorBroker &broker, size_t start_index)
+static void worker_routine(std::shared_ptr<SensorBroker> broker, size_t start_index)
 {
 	zmq::context_t context;
 	zmq::socket_t socket(context, zmq::socket_type::push);
 	socket.connect(ZMQ_SENDER);
 
 	while (true) {
-		auto sensor = broker.get_next_sensor(start_index);
+		auto sensor = broker->get_next_sensor(start_index);
 		GeneratedPosition &data = sensor.get_data();
 
 		uint64_t old_timestamp_us = data.timestamp_usec();
@@ -39,14 +39,14 @@ static void worker_routine(SensorBroker &broker, size_t start_index)
 	}
 }
 
-void start_workers(SensorBroker &broker, size_t count)
+void start_workers(std::shared_ptr<SensorBroker> &broker, size_t count)
 {
-	size_t sensors_count = broker.size();
+	size_t sensors_count = broker->size();
 
 	for (size_t i = 0; i < count; ++i) {
 		/* spread the threads evenly across the sensors */
 		size_t start_index = sensors_count * i / count;
-		std::thread worker(worker_routine, std::ref(broker), start_index);
+		std::thread worker(worker_routine, broker, start_index);
 		worker.detach();
 	}
 }
