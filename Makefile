@@ -1,7 +1,9 @@
 OBJ_DIR = obj
 BIN_DIR = bin
 
-BIN = $(BIN_DIR)/data_generator
+BIN_GENERATOR = $(BIN_DIR)/data_generator
+BIN_RECEIVER  = $(BIN_DIR)/data_receiver
+BINS = $(BIN_GENERATOR) $(BIN_RECEIVER)
 
 PROTO_DIR = protobuf
 PROTO_FILE = $(PROTO_DIR)/position.proto
@@ -10,6 +12,7 @@ PROTO_HDR = $(patsubst %.proto,%.pb.h,$(PROTO_FILE))
 PROTO_OBJ = $(patsubst $(PROTO_DIR)/%.cc,$(OBJ_DIR)/%.o,$(PROTO_SRC))
 
 CPP_FLAGS = -Wall -Wextra -Werror
+LFLAGS = -lprotobuf -lzmq -pthread
 
 %.pb.cc %.pb.h: %.proto
 	protoc --cpp_out=. $<
@@ -27,17 +30,24 @@ $(OBJ_DIR) $(BIN_DIR) :
 $(OBJ_DIR)/%.o : $(SRC_DIR)/%.cpp $(PROTO_HDR) $(wildcard include/*) | $(OBJ_DIR)
 	g++ $(CPP_FLAGS) -I include -I $(PROTO_DIR) -c $< -o $@
 
-$(BIN) : $(OBJS) | $(BIN_DIR)
-	g++ $^ -lprotobuf -pthread -o $@
+$(BIN_GENERATOR): $(OBJS) | $(BIN_DIR)
+	g++ $^ $(LFLAGS) -o $@
+
+$(BIN_RECEIVER): receiver/debug_receiver.cpp include/params.h $(PROTO_OBJ) | $(BIN_DIR)
+	g++ $(CPP_FLAGS) -I include -I $(PROTO_DIR) $< $(PROTO_OBJ) $(LFLAGS) -o $@
 
 .PHONY: all clean check
-all: $(BIN)
+all: $(BINS)
 
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR) $(PROTO_SRC) $(PROTO_HDR)
 
+TIMEOUT = 3
+
 check: all
-	$(BIN) && echo OK
+	@timeout $(TIMEOUT) $(BIN_RECEIVER)&
+	@timeout $(TIMEOUT) $(BIN_GENERATOR)&
+	sleep $(TIMEOUT)
 
 todo:
 	@git grep -wn TODO | grep -v 'Makefile.*git' | grep --color TODO

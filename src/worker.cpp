@@ -1,11 +1,19 @@
-#include <thread>
 #include <iostream>
+#include <thread>
+
+#include <zmq.hpp>
 
 #include "position.h"
 #include "worker.h"
 
+#include "params.h"
+
 static void worker_routine(SensorBroker &broker, size_t start_index)
 {
+	zmq::context_t context;
+	zmq::socket_t socket(context, zmq::socket_type::push);
+	socket.connect(ZMQ_SENDER);
+
 	while (true) {
 		auto sensor = broker.get_next_sensor(start_index);
 		GeneratedPosition &data = sensor.get_data();
@@ -20,8 +28,14 @@ static void worker_routine(SensorBroker &broker, size_t start_index)
 		GeneratedPosition pos_copy(data);
 		position::apply_noize(data.mutable_position());
 
-		/* no lock here, but for debug it's fine */
-		std::cout << pos_copy.DebugString() << std::endl;
+		std::string str;
+		if (!pos_copy.SerializeToString(&str)) {
+			std::cerr << "Can't serialize data" << std::endl;
+			continue;
+		}
+
+		zmq::message_t msg(str);
+		socket.send(msg, zmq::send_flags::none);
 	}
 }
 

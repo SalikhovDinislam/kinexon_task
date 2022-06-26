@@ -19,4 +19,7 @@ static const unsigned SENSORS_COUNT = 10;
 static const auto GENERATION_PERIOD = std::chrono::seconds(1);
 static const unsigned WORKERS_COUNT = 2;
 
+static const char * const ZMQ_RECEIVER = "tcp://*:5555";
+static const char * const ZMQ_SENDER = "tcp://localhost:5555";
+
 #endif
